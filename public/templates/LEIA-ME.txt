@@ -1,0 +1,8 @@
+Coloque aqui o arquivo "proposta-template.pdf" (o PDF original com o layout
+da imobiliaria Valerao Mendes).
+
+Depois de adicionar o arquivo, ajuste as coordenadas de cada campo em
+lib/pdf-coordinates.ts comparando com as posicoes reais do PDF.
+
+Enquanto este arquivo nao existir, lib/pdf.ts gera um PDF em branco (A4)
+apenas para permitir testar o fluxo completo em desenvolvimento.
