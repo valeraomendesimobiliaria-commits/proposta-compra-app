@@ -37,7 +37,7 @@ export async function gerarPropostaPdf(data: PropostaFormData): Promise<Uint8Arr
     ? await puppeteer.launch({
         args: chromium.args,
         executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
+        headless: true,
       })
     : await puppeteer.launch({
         executablePath: LOCAL_CHROME_PATH,
