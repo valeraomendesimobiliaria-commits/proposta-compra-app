@@ -9,7 +9,7 @@ export const ESTADO_CIVIL_OPTIONS = [
 ] as const;
 
 export const GERENTES = [
-  { nome: "Jeferson", email: "jefersonjsg@gmail.com" },
+  { nome: "Jeferson", email: "jefersonjsg@hotmail.com" },
   { nome: "Matheus", email: "matheusfuentes232@gmail.com" },
   { nome: "João", email: "joaosouzabroker@gmail.com" },
 ] as const;
