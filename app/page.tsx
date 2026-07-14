@@ -130,7 +130,7 @@ export default function Home() {
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
         <Card
           title="Preencher automaticamente (opcional)"
-          description="Envie uma foto do RG ou CNH para preencher os dados do proponente automaticamente"
+          description="Envie uma foto do RG para preencher os dados do proponente automaticamente"
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-1">
@@ -146,7 +146,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">Foto do documento (RG ou CNH)</label>
+              <label className="text-sm font-medium text-slate-700">Foto do documento (RG)</label>
               <input
                 type="file"
                 accept="image/*"
@@ -181,6 +181,7 @@ export default function Home() {
               Confira os dados abaixo antes de enviar — a leitura automática pode conter erros.
             </div>
           )}
+
         </Card>
 
         <Card title="Cabeçalho">

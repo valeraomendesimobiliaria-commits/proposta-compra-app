@@ -115,6 +115,55 @@ function limparPalavrasRuido(linha: string): string {
     .join(" ");
 }
 
+// Rótulo que ocupa a linha inteira (sem valor junto) no RG ("Nome" ou
+// "Nome / Name"). Nesse caso o valor real fica na linha seguinte, e o
+// próprio texto do rótulo não pode ser confundido com o nome.
+const ROTULOS_NOME = [/nome\s*\/\s*name/i, /nome/i];
+
+function linhaÉApenasRótulo(linha: string): boolean {
+  const linhaTrim = linha.trim();
+  return ROTULOS_NOME.some((padrao) => {
+    const match = linhaTrim.match(padrao);
+    if (!match) return false;
+    // O que sobra da linha ao remover o rótulo. Se não sobrar nenhuma
+    // sequência de letras (só números de campo, pontuação etc.), a linha é
+    // só rótulo; se sobrar texto real, é porque há um valor colado nela.
+    const resto = linhaTrim.slice(0, match.index) + linhaTrim.slice((match.index ?? 0) + match[0].length);
+    return !/[A-ZÀ-Ýa-zà-ÿ]{3,}/.test(resto);
+  });
+}
+
+// Frases do próprio documento que nunca podem ser aceitas como nome, mesmo
+// estando em maiúsculas e "parecendo" um nome de pessoa (cabeçalhos,
+// títulos de instituição etc.).
+const FRASES_PROIBIDAS_NOME = [
+  "REPÚBLICA FEDERATIVA DO BRASIL",
+  "MINISTÉRIO DOS TRANSPORTES",
+  "SECRETARIA NACIONAL DE TRÂNSITO",
+  "CARTEIRA NACIONAL DE HABILITAÇÃO",
+  "DRIVER LICENSE",
+  "PERMISO DE CONDUCCIÓN",
+];
+
+function normalizarParaComparação(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toUpperCase()
+    .trim();
+}
+
+function éFraseProibida(candidato: string): boolean {
+  const candidatoNormalizado = normalizarParaComparação(candidato);
+  if (!candidatoNormalizado) return false;
+  return FRASES_PROIBIDAS_NOME.some((frase) => {
+    const fraseNormalizada = normalizarParaComparação(frase);
+    return (
+      fraseNormalizada.includes(candidatoNormalizado) || candidatoNormalizado.includes(fraseNormalizada)
+    );
+  });
+}
+
 function extrairNome(texto: string): string {
   const linhas = texto
     .split(/\r?\n/)
@@ -122,35 +171,80 @@ function extrairNome(texto: string): string {
     .filter(Boolean);
 
   // Primeira tentativa: linha rotulada como "nome", pegando o texto após o rótulo
-  // ou, se vazio, a linha seguinte. Remove ruído de fundo (tokens curtos e
-  // caracteres soltos) antes de validar o candidato.
+  // ou, se vazio, a próxima linha válida. Remove ruído de fundo (tokens curtos e
+  // caracteres soltos) e descarta frases proibidas (cabeçalho do documento)
+  // antes de validar o candidato, continuando a busca linha a linha até achar
+  // um valor aceitável.
   const idxNome = linhas.findIndex((linha) => /\bnome\b/i.test(linha));
   if (idxNome !== -1) {
-    const apósRótulo = limparPalavrasRuido(
-      linhas[idxNome].replace(/.*\bnome\b[:\s]*/i, "").trim()
-    );
-    if (apósRótulo.length >= 5) {
-      return apósRótulo;
-    }
-    const próximaLinha = linhas[idxNome + 1];
-    if (próximaLinha) {
-      const próximaLimpa = limparPalavrasRuido(próximaLinha);
-      if (próximaLimpa.length >= 5) {
-        return próximaLimpa;
+    const linhaRotulo = linhas[idxNome];
+
+    if (!linhaÉApenasRótulo(linhaRotulo)) {
+      const apósRótulo = limparPalavrasRuido(
+        linhaRotulo.replace(/.*\bnome\b[:\s]*/i, "").trim()
+      );
+      if (apósRótulo.length >= 5 && !éFraseProibida(apósRótulo)) {
+        return apósRótulo;
       }
+    }
+
+    for (let i = idxNome + 1; i < linhas.length; i++) {
+      const linhaLimpa = limparPalavrasRuido(linhas[i]);
+      if (linhaLimpa.length < 5 || éFraseProibida(linhaLimpa)) continue;
+      return linhaLimpa;
     }
   }
 
-  // Alternativa: a maior sequência de palavras em maiúsculas do texto.
+  // Alternativa: a maior sequência de palavras em maiúsculas do texto, que não
+  // seja uma frase proibida (cabeçalho/título do documento).
   const padraoMaiusculas = /^[A-ZÀ-ÖØ-Ý][A-ZÀ-ÖØ-Ý'-]*(\s+[A-ZÀ-ÖØ-Ý][A-ZÀ-ÖØ-Ý'-]*)+$/;
   let melhorCandidato = "";
   for (const linha of linhas) {
-    if (padraoMaiusculas.test(linha) && linha.length > melhorCandidato.length) {
+    if (
+      padraoMaiusculas.test(linha) &&
+      linha.length > melhorCandidato.length &&
+      !éFraseProibida(linha)
+    ) {
       melhorCandidato = linha;
     }
   }
 
   return melhorCandidato;
+}
+
+// Passada rápida (baixa resolução) nas 4 rotações para escolher a orientação
+// com melhor confidence, depois uma passada completa (resolução total +
+// pré-processamento) só na rotação vencedora.
+async function reconhecerTextoViaOcr(buffer: Buffer): Promise<string> {
+  const worker = await createWorker("por", undefined, {
+    langPath: TESSDATA_PATH,
+    cachePath: os.tmpdir(),
+  });
+
+  try {
+    let melhorRotacao: (typeof ROTACOES)[number] = 0;
+    let melhorConfidence = -1;
+
+    for (const rotacao of ROTACOES) {
+      const imagemRapida = await preprocessarImagemRapida(buffer, rotacao);
+      const { data } = await worker.recognize(
+        imagemRapida,
+        {},
+        { blocks: false, text: true, hocr: false, tsv: false }
+      );
+
+      if (data.confidence > melhorConfidence) {
+        melhorConfidence = data.confidence;
+        melhorRotacao = rotacao;
+      }
+    }
+
+    const imagemFinal = await preprocessarImagem(buffer, melhorRotacao);
+    const { data } = await worker.recognize(imagemFinal);
+    return data.text;
+  } finally {
+    await worker.terminate();
+  }
 }
 
 function extrairCampos(texto: string): CamposExtraidos {
@@ -170,50 +264,16 @@ export async function POST(request: NextRequest) {
 
     if (!arquivo || !(arquivo instanceof Blob)) {
       return NextResponse.json(
-        { sucesso: false, erro: "Nenhuma imagem enviada." },
+        { sucesso: false, erro: "Nenhum arquivo enviado." },
         { status: 400 }
       );
     }
 
     const buffer = Buffer.from(await arquivo.arrayBuffer());
 
-    const worker = await createWorker("por", undefined, {
-      langPath: TESSDATA_PATH,
-      cachePath: os.tmpdir(),
-    });
-
-    try {
-      // Passada rápida (baixa resolução) nas 4 rotações, só para decidir qual
-      // orientação tem o melhor "confidence" do Tesseract.
-      let melhorRotacao: (typeof ROTACOES)[number] = 0;
-      let melhorConfidence = -1;
-
-      for (const rotacao of ROTACOES) {
-        const imagemRapida = await preprocessarImagemRapida(buffer, rotacao);
-        // `text: true` é necessário para o Tesseract efetivamente rodar o
-        // reconhecimento (e calcular o confidence); só os formatos mais
-        // pesados (hocr/tsv/blocks) são desligados na passada rápida.
-        const { data } = await worker.recognize(
-          imagemRapida,
-          {},
-          { blocks: false, text: true, hocr: false, tsv: false }
-        );
-
-        if (data.confidence > melhorConfidence) {
-          melhorConfidence = data.confidence;
-          melhorRotacao = rotacao;
-        }
-      }
-
-      // Passada completa (resolução total + pré-processamento já existente)
-      // só na rotação vencedora.
-      const imagemFinal = await preprocessarImagem(buffer, melhorRotacao);
-      const { data } = await worker.recognize(imagemFinal);
-      const campos = extrairCampos(data.text);
-      return NextResponse.json({ sucesso: true, campos });
-    } finally {
-      await worker.terminate();
-    }
+    const textoOcr = await reconhecerTextoViaOcr(buffer);
+    const campos = extrairCampos(textoOcr);
+    return NextResponse.json({ sucesso: true, campos });
   } catch (erro) {
     console.error("Erro ao extrair documento:", erro);
     return NextResponse.json(
