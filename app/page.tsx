@@ -183,18 +183,7 @@ export default function Home() {
           </div>
         </Card>
 
-        <Card title="Cheque / Corretor">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Input label="Nº do Cheque" registration={register("cheque.numeroCheque")} />
-            <Input label="Banco" registration={register("cheque.banco")} />
-            <Input label="Valor" registration={register("cheque.valor")} />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input label="Nominal a" registration={register("cheque.nominalA")} />
-            <Input label="Para ser depósito em" registration={register("cheque.paraDepositoEm")} />
-          </div>
-
+        <Card title="Corretor Responsável">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Input label="Corretor" registration={register("cheque.corretor")} />
             <Input label="Creci" registration={register("cheque.creci")} />

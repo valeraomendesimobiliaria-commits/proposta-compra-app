@@ -134,17 +134,6 @@ export function renderPropostaHtml(data: PropostaFormData, logoDataUri: string):
 
   const cheque = `
     <div class="field-row">
-      ${field("Nº do Cheque", data.cheque.numeroCheque)}
-      ${field("Banco", data.cheque.banco)}
-      ${field("Valor", data.cheque.valor)}
-    </div>
-    <div class="field-row">
-      ${field("Nominal a", data.cheque.nominalA, true)}
-    </div>
-    <div class="field-row">
-      ${field("Para Depósito em", data.cheque.paraDepositoEm, true)}
-    </div>
-    <div class="field-row">
       ${field("Corretor", data.cheque.corretor)}
       ${field("Creci", data.cheque.creci)}
       ${field("Gerente", data.cheque.gerente)}
@@ -270,7 +259,7 @@ export function renderPropostaHtml(data: PropostaFormData, logoDataUri: string):
     ${section("2º Proponente", proponente2)}
     ${section("Condições de Pagamento", condicoes)}
     ${section("Resumo", resumo)}
-    ${section("Cheque / Corretor", cheque)}
+    ${section("Corretor Responsável", cheque)}
   </div>
 </body>
 </html>`;

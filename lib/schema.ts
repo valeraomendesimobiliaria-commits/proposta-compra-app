@@ -69,11 +69,6 @@ export const propostaSchema = z.object({
   }),
 
   cheque: z.object({
-    numeroCheque: z.string().default(""),
-    banco: z.string().default(""),
-    valor: z.string().default(""),
-    nominalA: z.string().default(""),
-    paraDepositoEm: z.string().default(""),
     corretor: z.string().default(""),
     creci: z.string().default(""),
     gerente: z.string().default(""),
@@ -124,11 +119,6 @@ export const defaultPropostaValues: PropostaFormData = {
     banco: "",
   },
   cheque: {
-    numeroCheque: "",
-    banco: "",
-    valor: "",
-    nominalA: "",
-    paraDepositoEm: "",
     corretor: "",
     creci: "",
     gerente: "",
