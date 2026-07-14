@@ -23,6 +23,7 @@ export default function Home() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<PropostaFormData>({
     resolver: zodResolver(propostaSchema),
@@ -31,6 +32,65 @@ export default function Home() {
 
   const [status, setStatus] = useState<EnvioStatus>("idle");
   const [mensagemErro, setMensagemErro] = useState("");
+
+  const [proponenteAlvo, setProponenteAlvo] = useState<"1" | "2">("1");
+  const [arquivoDocumento, setArquivoDocumento] = useState<File | null>(null);
+  const [lendoDocumento, setLendoDocumento] = useState(false);
+  const [erroLeitura, setErroLeitura] = useState("");
+  const [avisoConferencia, setAvisoConferencia] = useState(false);
+
+  const handleLerDocumento = async () => {
+    if (!arquivoDocumento) {
+      setErroLeitura("Selecione uma imagem do documento antes de continuar.");
+      return;
+    }
+
+    setLendoDocumento(true);
+    setErroLeitura("");
+
+    try {
+      const formData = new FormData();
+      formData.append("imagem", arquivoDocumento);
+
+      const res = await fetch("/api/extrair-documento", {
+        method: "POST",
+        body: formData,
+      });
+
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok || !body.sucesso) {
+        throw new Error(body.erro ?? "Não foi possível ler o documento.");
+      }
+
+      const campos = body.campos as {
+        nome: string;
+        cpf: string;
+        dataNascimento: string;
+        identidade: string;
+      };
+
+      if (proponenteAlvo === "1") {
+        if (campos.nome) setValue("proponente1.nome", campos.nome);
+        if (campos.cpf) setValue("proponente1.cpf", campos.cpf);
+        if (campos.dataNascimento) setValue("proponente1.dataNascimento", campos.dataNascimento);
+        if (campos.identidade) setValue("proponente1.identidade", campos.identidade);
+      } else {
+        if (campos.nome) setValue("proponente2.nome", campos.nome);
+        if (campos.cpf) setValue("proponente2.cpf", campos.cpf);
+        if (campos.dataNascimento) setValue("proponente2.dataNascimento", campos.dataNascimento);
+        if (campos.identidade) setValue("proponente2.identidade", campos.identidade);
+      }
+
+      setAvisoConferencia(true);
+    } catch (error) {
+      setErroLeitura(
+        error instanceof Error ? error.message : "Erro inesperado ao ler o documento."
+      );
+    } finally {
+      setLendoDocumento(false);
+    }
+  };
 
   const onSubmit = async (data: PropostaFormData) => {
     setStatus("loading");
@@ -68,6 +128,61 @@ export default function Home() {
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
+        <Card
+          title="Preencher automaticamente (opcional)"
+          description="Envie uma foto do RG ou CNH para preencher os dados do proponente automaticamente"
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Proponente a preencher</label>
+              <select
+                value={proponenteAlvo}
+                onChange={(e) => setProponenteAlvo(e.target.value as "1" | "2")}
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-brand-orange"
+              >
+                <option value="1">Proponente 1</option>
+                <option value="2">Proponente 2</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Foto do documento (RG ou CNH)</label>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => setArquivoDocumento(e.target.files?.[0] ?? null)}
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm file:mr-3 file:rounded file:border-0 file:bg-brand-orange file:px-3 file:py-1 file:text-white"
+              />
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-500">
+            Tire a foto em um lugar bem iluminado, com o documento reto e sem reflexos.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleLerDocumento}
+            disabled={lendoDocumento}
+            className="self-start rounded-md border border-brand-orange px-4 py-2 text-sm font-semibold text-brand-orange transition hover:bg-brand-orange hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {lendoDocumento ? "Lendo documento..." : "Ler documento"}
+          </button>
+
+          {erroLeitura && (
+            <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {erroLeitura}
+            </div>
+          )}
+
+          {avisoConferencia && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Confira os dados abaixo antes de enviar — a leitura automática pode conter erros.
+            </div>
+          )}
+        </Card>
+
         <Card title="Cabeçalho">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Input label="Imóvel" registration={register("imovel")} />
