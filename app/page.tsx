@@ -58,9 +58,13 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      <header className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Proposta de Compra e Venda</h1>
-        <p className="text-sm text-slate-500">Valerão Mendes Imobiliária</p>
+      <header className="mb-8 flex flex-col items-center gap-3 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Valerão Mendes" className="h-16 w-auto sm:h-20" />
+        <div>
+          <h1 className="text-2xl font-bold text-brand-navy">Proposta de Compra e Venda</h1>
+          <p className="text-sm text-slate-500">Valerão Mendes Imobiliária</p>
+        </div>
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
@@ -223,7 +227,7 @@ export default function Home() {
         <button
           type="submit"
           disabled={status === "loading"}
-          className="rounded-md bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-brand-orange px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-orange-dark disabled:cursor-not-allowed disabled:opacity-60"
         >
           {status === "loading" ? "Gerando proposta..." : "Gerar e enviar proposta"}
         </button>
